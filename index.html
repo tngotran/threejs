@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            /* body {
+                overflow: hidden;
+                margin: 0px;
+            } */
+        </style>
+        <!-- <link rel="shortcut icon" href="favicon.ico"> -->
+		<!-- <link href='https://fonts.googleapis.com/css?family=Playfair+Display:400,700,700italic' rel='stylesheet' type='text/css'> -->
+		<link rel="stylesheet" type="text/css" href="css/demo.css" />
+		<link rel="stylesheet" type="text/css" href="css/styles.css" />
+    </head>
+
+    <body>
+        <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/16.3.5/Tween.min.js"></script> -->
+        <script type="module">
+            // import * as THREE from 'https://cdn.skypack.dev/three@0.131.1/build/three.module.js'
+            // import { OrbitControls } from 'https://cdn.skypack.dev/three@0.131.1/examples/jsm/controls/OrbitControls'
+            // import Stats from 'https://cdn.skypack.dev/three@0.131.1/examples/jsm/libs/stats.module.js'
+            
+            // IF ANY ABOVE LINK DOES NOT WORK, MAY UN_COMMENT BELOW 4 LINES and RUN PYTHON3 -M HTTP.SERVER TO RUN LOCALLY
+            import * as THREE from './js/three.module.js'      
+            import { OrbitControls } from './js/OrbitControls.js'            
+            import Stats from './js/stats.module.js';
+            import { TWEEN } from './js/tween.module.min.js'            
+
+            var Colors = {
+                animation_color: 0xffaa00,
+                red:0xf25346,
+                white:0xd8d0d1,
+                brown:0x59332e,
+                pink:0xF5986E,
+                brownDark:0xA0A0A0,
+                blue:0x68c3c0,
+                darkgrey:0xA0A0A0,
+                lighgrey:0xD3D3D3,
+                blue:0x0000CC,
+                connection:0xE0E0E0,
+            };
+            
+            /////////////////////// START SETTING UP
+            // set up camera, scene, controls, render
+            var HEIGHT, WIDTH, nearPlane, farPlane, fieldOfView, aspectRatio, mousePos = { x: 0, y: 0 };
+            HEIGHT = window.innerHeight;
+            WIDTH = window.innerWidth;
+
+            const scene = new THREE.Scene()
+            aspectRatio = WIDTH / HEIGHT;
+            fieldOfView = 45;
+            nearPlane = 1;
+            farPlane = 10000;
+
+            const camera = new THREE.PerspectiveCamera(
+                fieldOfView,
+                aspectRatio,
+                nearPlane,
+                farPlane
+            )
+            camera.position.x = 0;
+            camera.position.z = 600;
+            camera.position.y = 50;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true })
+            renderer.setSize(window.innerWidth, window.innerHeight)
+            document.body.appendChild(renderer.domElement)
+
+            const controls = new OrbitControls(camera, renderer.domElement)
+            controls.listenToKeyEvents(document.body)
+
+            
+
+            var ambientLight, hemisphereLight, shadowLight;
+            function createLights() {
+                hemisphereLight = new THREE.HemisphereLight(0xaaaaaa,0x000000, .9)
+                shadowLight = new THREE.DirectionalLight(0xffffff, .9);
+                shadowLight.position.set(150, 350, 350);
+                shadowLight.castShadow = true;
+                shadowLight.shadow.camera.left = -400;
+                shadowLight.shadow.camera.right = 400;
+                shadowLight.shadow.camera.top = 400;
+                shadowLight.shadow.camera.bottom = -400;
+                shadowLight.shadow.camera.near = 1;
+                shadowLight.shadow.camera.far = 1000;
+                shadowLight.shadow.mapSize.width = 2048;
+                shadowLight.shadow.mapSize.height = 2048;
+
+                scene.add(hemisphereLight);
+                scene.add(shadowLight);
+            }            
+            createLights()
+
+            window.addEventListener('resize', onWindowResize, false)
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight
+                camera.updateProjectionMatrix()
+                renderer.setSize(window.innerWidth, window.innerHeight)
+                render()
+            }
+
+            const stats = Stats()
+            document.body.appendChild(stats.dom)
+
+            function animate() {
+                requestAnimationFrame(animate)
+                controls.update()
+                TWEEN.update();
+                render()
+                stats.update()
+            }
+
+            function render() {
+                renderer.render(scene, camera)
+            }
+            /////////////////// FINISH SETTING UP ENVIRONMENT
+
+
+            // This camera move tween move the camera like pan technique in photography
+            function camera_move(){
+                new TWEEN.Tween(camera.rotation)
+                    .to({
+                        y:-0.01
+                    }, 20000)
+                    .start();
+                new TWEEN.Tween(camera.position)
+                    .to({
+                        x:70,
+                        y:100,
+                        z:500
+                    }, 20000)                    
+                    .start();
+                }
+
+            
+            // This sea draw all atoms, connections
+            sea()
+            function sea(){
+                const material_nito = new THREE.MeshPhongMaterial( { ambient: 0x00ffff,reflectivity: 1, color:Colors.blue, shininess: 100,wireframe: false } );   
+                const carbonAtom   =  new THREE.SphereGeometry(10, 65, 32,0,7,0,3.14);
+                const material_carbon = new THREE.MeshPhongMaterial( { ambient: 0x00ffff, reflectivity: 1, color:Colors.brownDark, shininess: 100,wireframe: false } );   
+
+                // line carbon - carbon
+                const c_c_line = new THREE.LineBasicMaterial({
+                    color: Colors.connection,
+                    linewidth: 5,
+                    ambient: 0xffffff, color:0xE0E0E0, roughness:1, reflectivity: 0.5,
+                    linecap: 'round', //ignored by WebGLRenderer
+                    linejoin:  'round' //ignored by WebGLRenderer
+                });
+                
+                const c_c_dashline = new THREE.LineDashedMaterial( {
+                     color: Colors.connection, 
+                     linewidth: 3,
+                     dashSize: 3, 
+                     gapSize: 1 } )
+
+                // line hydro- carbon
+                const hydroAtom   =  new THREE.SphereGeometry(7, 64, 32,0,7,0,3.14);
+                const hydroSphereSmall = new THREE.MeshPhongMaterial( { ambient: 0x00ffff, color:Colors.lighgrey, wireframe: false } );   
+                // Lines
+                const material = new THREE.LineBasicMaterial({
+                    color: Colors.connection,
+                    linewidth: 3,
+                    ambient: 0xffffff, color:0xE0E0E0, roughness:1, reflectivity: 0.5,
+                    linecap: 'round', //ignored by WebGLRenderer
+                    linejoin:  'round' //ignored by WebGLRenderer
+                });
+
+                let offset = 3.5
+
+                //////////////////////////////////
+                // Placing positions for the varying spheres               
+                const carbonAtom0 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom0.position.x = 0;
+                carbonAtom0.position.y = 50;
+                carbonAtom0.position.z = 0;
+                carbonAtom0.receiveShadow = true;
+                carbonAtom0.castShadow =true;
+                scene.add(carbonAtom0);
+            
+                const carbonAtom1 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom1.position.x = 0;   
+                carbonAtom1.position.y = 0;
+                carbonAtom1.position.z = 0;
+                carbonAtom1.receiveShadow = true;
+                carbonAtom1.castShadow =true;
+                scene.add( carbonAtom1 );
+                //nitor 2    
+                const carbonAtom2 = new THREE.Mesh(carbonAtom, material_nito);
+                carbonAtom2.position.x = 50;
+                carbonAtom2.position.y = 90;
+                carbonAtom2.position.z = 0; 
+                carbonAtom2.receiveShadow = true;
+                carbonAtom2.castShadow =true;
+                scene.add( carbonAtom2 );
+
+                const carbonAtom3 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom3.position.x = 100;
+                carbonAtom3.position.y = 50;
+                carbonAtom3.position.z = 0; 
+                carbonAtom3.receiveShadow = true;
+                carbonAtom3.castShadow =true;
+                scene.add( carbonAtom3 );
+
+                const carbonAtom4 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom4.position.x = 100;
+                carbonAtom4.position.y = 0;
+                carbonAtom4.position.z = 0; 
+                carbonAtom4.receiveShadow = true;
+                carbonAtom4.castShadow =true;
+                scene.add( carbonAtom4 );
+
+                const carbonAtom5 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom5.position.x = 50;
+                carbonAtom5.position.y = -40;
+                carbonAtom5.position.z = 0; 
+                carbonAtom5.receiveShadow = true;
+                carbonAtom5.castShadow =true;
+                scene.add( carbonAtom5 );
+
+                const carbonAtom6 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom6.position.x = -50;
+                carbonAtom6.position.y = -40;
+                carbonAtom6.position.z = 0; 
+                carbonAtom6.receiveShadow = true;
+                carbonAtom6.castShadow =true;
+                scene.add(carbonAtom6);
+
+                const carbonAtom7 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom7.position.x = -100;
+                carbonAtom7.position.y = 0;
+                carbonAtom7.position.z = 0; 
+                carbonAtom7.receiveShadow = true;
+                carbonAtom7.castShadow =true;
+                scene.add(carbonAtom7);
+
+                const carbonAtom8 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom8.position.x = -100;
+                carbonAtom8.position.y = 50;
+                carbonAtom8.position.z = 0; 
+                carbonAtom8.receiveShadow = true;
+                carbonAtom8.castShadow =true;
+                scene.add(carbonAtom8);
+
+                //nitor 2    
+                const carbonAtom9 = new THREE.Mesh(carbonAtom, material_nito);
+                carbonAtom9.position.x = -50;
+                carbonAtom9.position.y = 90;
+                carbonAtom9.position.z = 0; 
+                carbonAtom9.receiveShadow = true;
+                carbonAtom9.castShadow =true;
+                scene.add( carbonAtom9);
+
+                const carbonAtom10 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom10.position.x = -150;
+                carbonAtom10.position.y = -40;
+                carbonAtom10.position.z = 0; 
+                carbonAtom10.receiveShadow = true;
+                carbonAtom10.castShadow =true;
+                scene.add(carbonAtom10);
+
+                const carbonAtom11 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom11.position.x = -200;
+                carbonAtom11.position.y = 0;
+                carbonAtom11.position.z = 0; 
+                carbonAtom11.receiveShadow = true;
+                carbonAtom11.castShadow =true;
+                scene.add(carbonAtom11);
+
+                const carbonAtom12 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom12.position.x = -200;
+                carbonAtom12.position.y = 50;
+                carbonAtom12.position.z = 0; 
+                carbonAtom12.receiveShadow = true;
+                carbonAtom12.castShadow =true;
+                scene.add(carbonAtom12);
+
+                // nitor 13
+                const carbonAtom13 = new THREE.Mesh(carbonAtom, material_nito);
+                carbonAtom13.position.x = -150;
+                carbonAtom13.position.y = 90;
+                carbonAtom13.position.z = 0; 
+                carbonAtom13.receiveShadow = true;
+                carbonAtom13.castShadow =true;
+                scene.add( carbonAtom13);
+                
+            
+                //////////// Carbon ring 4
+                const carbonAtom14 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom14.position.x = -250;
+                carbonAtom14.position.y = -40;
+                carbonAtom14.position.z = 0; 
+                carbonAtom14.receiveShadow = true;
+                carbonAtom14.castShadow =true;
+                scene.add(carbonAtom14);
+
+                const carbonAtom15 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom15.position.x = -300;
+                carbonAtom15.position.y = 0;
+                carbonAtom15.position.z = 0; 
+                carbonAtom15.receiveShadow = true;
+                carbonAtom15.castShadow =true;
+                scene.add(carbonAtom15);
+
+                const carbonAtom16 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom16.position.x = -300;
+                carbonAtom16.position.y = 50;
+                carbonAtom16.position.z = 0; 
+                carbonAtom16.receiveShadow = true;
+                carbonAtom16.castShadow =true;
+                scene.add(carbonAtom16);
+
+                // nitor 17
+                const carbonAtom17 = new THREE.Mesh(carbonAtom, material_nito);
+                carbonAtom17.position.x = -250;
+                carbonAtom17.position.y = 90;
+                carbonAtom17.position.z = 0; 
+                carbonAtom17.receiveShadow = true;
+                carbonAtom17.castShadow =true;
+                scene.add( carbonAtom17);
+
+                //////////// Carbon ring 5
+                const carbonAtom18 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom18.position.x = -350;
+                carbonAtom18.position.y = -40;
+                carbonAtom18.position.z = 0; 
+                carbonAtom18.receiveShadow = true;
+                carbonAtom18.castShadow =true;
+                scene.add(carbonAtom18);
+
+                const carbonAtom19 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                carbonAtom19.position.x = -380;
+                carbonAtom19.position.y = -10;
+                carbonAtom19.position.z = 0; 
+                carbonAtom19.receiveShadow = true;
+                carbonAtom19.castShadow =true;
+                scene.add(carbonAtom19);
+
+                const carbonAtom20 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                carbonAtom20.position.x = -330;
+                carbonAtom20.position.y = 80;
+                carbonAtom20.position.z = 0; 
+                carbonAtom20.receiveShadow = true;
+                carbonAtom20.castShadow =true;
+                scene.add(carbonAtom20);
+                // FIRST ring
+                const carbonAtom21 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom21.position.x = 150;
+                carbonAtom21.position.y = -40;
+                carbonAtom21.position.z = 0;
+                carbonAtom21.receiveShadow = true;
+                carbonAtom21.castShadow =true;
+                scene.add(carbonAtom21);
+                
+                
+                const carbonAtom22 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom22.position.x = 200;
+                carbonAtom22.position.y = 0;
+                carbonAtom22.position.z = 0; 
+                carbonAtom22.receiveShadow = true;
+                carbonAtom22.castShadow =true;
+                scene.add(carbonAtom22);
+
+                // nitor 23
+                const carbonAtom23 = new THREE.Mesh(carbonAtom, material_nito);
+                carbonAtom23.position.x = 150;
+                carbonAtom23.position.y = 90;
+                carbonAtom23.position.z = 0; 
+                carbonAtom23.receiveShadow = true;
+                carbonAtom23.castShadow =true;
+                scene.add( carbonAtom23);
+                
+                
+                // FINAL RING
+                const carbonAtom24 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom24.position.x = 250;
+                carbonAtom24.position.y = -40;
+                carbonAtom24.position.z = 0; 
+                carbonAtom24.receiveShadow = true;
+                carbonAtom24.castShadow =true;
+                scene.add(carbonAtom24);
+
+                // hydro 25
+                const carbonAtom25 = new THREE.Mesh(hydroAtom, material_carbon);
+                carbonAtom25.position.x = 280;
+                carbonAtom25.position.y = -10;
+                carbonAtom25.position.z = 0; 
+                carbonAtom25.receiveShadow = true;
+                carbonAtom25.castShadow =true;
+                scene.add(carbonAtom25);
+
+                // carbon 26
+                const carbonAtom26 = new THREE.Mesh(carbonAtom, material_carbon);
+                carbonAtom26.position.x = 200;
+                carbonAtom26.position.y = 50;
+                carbonAtom26.position.z = 0; 
+                carbonAtom26.receiveShadow = true;
+                carbonAtom26.castShadow =true;
+                scene.add(carbonAtom26);
+
+                // nitor 27
+                const carbonAtom27 = new THREE.Mesh(carbonAtom, material_nito);
+                carbonAtom27.position.x = 250;
+                carbonAtom27.position.y = 90;
+                carbonAtom27.position.z = 0; 
+                carbonAtom27.receiveShadow = true;
+                carbonAtom27.castShadow =true;
+                scene.add(carbonAtom27);
+
+
+
+                
+                ///////////////// HYDRO DRAWING
+                const hydroAtom51 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom51.position.x = 50;
+                hydroAtom51.position.y = -70;
+                hydroAtom51.position.z = -40; 
+                hydroAtom51.receiveShadow = true;
+                hydroAtom51.castShadow =true;
+                scene.add( hydroAtom51 );                
+                // line
+                const points51 = [];
+                points51.push(new THREE.Vector3( 50, -40, 0 ));
+                points51.push(new THREE.Vector3( 50, -70, -40 ));
+                const geometry51 = new THREE.BufferGeometry().setFromPoints(points51);
+                const line51 = new THREE.Line( geometry51, material );
+                scene.add( line51 );
+                // hydro
+                const hydroAtom52 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom52.position.x = 50;
+                hydroAtom52.position.y = -70;
+                hydroAtom52.position.z = 40; 
+                hydroAtom52.receiveShadow = true;
+                hydroAtom52.castShadow =true;
+                scene.add( hydroAtom52 );
+                //line hydro
+                const points52 = [];
+                points52.push(new THREE.Vector3( 50, -40, 0 ));
+                points52.push(new THREE.Vector3( 50, -70, 40 ));
+                const geometry52 = new THREE.BufferGeometry().setFromPoints(points52);
+                const line52 = new THREE.Line( geometry52, material);
+                scene.add( line52 );
+
+                // hydro
+                const hydroAtom1 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom1.position.x = 0;
+                hydroAtom1.position.y = -30;
+                hydroAtom1.position.z = -40; 
+                hydroAtom1.receiveShadow = true;
+                hydroAtom1.castShadow =true;
+                scene.add( hydroAtom1 );
+                //line hydro
+                const points1 = [];
+                points1.push(new THREE.Vector3( 0, -30, -40 ));
+                points1.push(new THREE.Vector3( 0, 0, 0 ));
+                const geometry1 = new THREE.BufferGeometry().setFromPoints(points1);
+                const line1 = new THREE.Line( geometry1, material);
+                scene.add( line1 );
+
+
+                ///////////////hydro 61
+                const hydroAtom61 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom61.position.x = -50;
+                hydroAtom61.position.y = -70;
+                hydroAtom61.position.z = 40; 
+                hydroAtom61.receiveShadow = true;
+                hydroAtom61.castShadow =true;
+                scene.add( hydroAtom61 );
+                //line hydro 61
+                const points61 = [];
+                points61.push(new THREE.Vector3( -50, -40, 0 ));
+                points61.push(new THREE.Vector3( -50, -70, 40 ));
+                const geometry61 = new THREE.BufferGeometry().setFromPoints(points61);
+                const line61 = new THREE.Line( geometry61, material);
+                scene.add( line61 );
+                //hydro 62
+                const hydroAtom62 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom62.position.x = -50;
+                hydroAtom62.position.y = -70;
+                hydroAtom62.position.z = -40; 
+                hydroAtom62.receiveShadow = true;
+                hydroAtom62.castShadow =true;
+                scene.add( hydroAtom62 );
+                //line hydro 62
+                const points62 = [];
+                points62.push(new THREE.Vector3( -50, -40, 0 ));
+                points62.push(new THREE.Vector3( -50, -70, -40 ));
+                const geometry62 = new THREE.BufferGeometry().setFromPoints(points62);
+                const line62 = new THREE.Line( geometry62, material);
+                scene.add( line62 );
+                // hydro
+                const hydroAtom7 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom7.position.x = -100;
+                hydroAtom7.position.y = -30;
+                hydroAtom7.position.z = -40; 
+                hydroAtom7.receiveShadow = true;
+                hydroAtom7.castShadow =true;
+                scene.add( hydroAtom7 );
+                //line hydro
+                const points7 = [];
+                points7.push(new THREE.Vector3( -100, -30, -40 ));
+                points7.push(new THREE.Vector3( -100, 0, 0 ));
+                const geometry7 = new THREE.BufferGeometry().setFromPoints(points7);
+                const line7 = new THREE.Line( geometry7, material);
+                scene.add( line7 );
+
+                ///// hydro RING 3
+                const hydroAtom101 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom101.position.x = -150;
+                hydroAtom101.position.y = -70;
+                hydroAtom101.position.z = -40; 
+                hydroAtom101.receiveShadow = true;
+                hydroAtom101.castShadow =true;
+                scene.add( hydroAtom101 );                
+                // // line
+                const points101 = [];
+                points101.push(new THREE.Vector3( -150, -40, 0 ));
+                points101.push(new THREE.Vector3( -150, -70, -40 ));
+                const geometry101 = new THREE.BufferGeometry().setFromPoints(points101);
+                const line101 = new THREE.Line( geometry101, material );
+                scene.add( line101 );
+                // hydro
+                const hydroAtom102 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom102.position.x = -150;
+                hydroAtom102.position.y = -70;
+                hydroAtom102.position.z = 40; 
+                hydroAtom102.receiveShadow = true;
+                hydroAtom102.castShadow =true;
+                scene.add( hydroAtom102 );
+                // //line hydro
+                const points102 = [];
+                points102.push(new THREE.Vector3( -150, -40, 0 ));
+                points102.push(new THREE.Vector3( -150, -70, 40 ));
+                const geometry102 = new THREE.BufferGeometry().setFromPoints(points102);
+                const line102 = new THREE.Line( geometry102, material );
+                scene.add( line102 );
+                // hydro
+                const hydroAtom11 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom11.position.x = -200;
+                hydroAtom11.position.y = -30;
+                hydroAtom11.position.z = -40; 
+                hydroAtom11.receiveShadow = true;
+                hydroAtom11.castShadow =true;
+                scene.add( hydroAtom11 );
+                //line hydro
+                const points11 = [];
+                points11.push(new THREE.Vector3( -200, -30, -40 ));
+                points11.push(new THREE.Vector3( -200, 0, 0 ));
+                const geometry11 = new THREE.BufferGeometry().setFromPoints(points11);
+                const line11 = new THREE.Line( geometry11, material);
+                scene.add( line11 );
+
+                // hydro Ring 4
+                const hydroAtom141 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom141.position.x = -250;
+                hydroAtom141.position.y = -70;
+                hydroAtom141.position.z = -40; 
+                hydroAtom141.receiveShadow = true;
+                hydroAtom141.castShadow =true;
+                scene.add( hydroAtom141 );                
+                // line
+                const points141 = [];
+                points141.push(new THREE.Vector3( -250, -40, 0 ));
+                points141.push(new THREE.Vector3( -250, -70, -40 ));
+                const geometry141 = new THREE.BufferGeometry().setFromPoints(points141);
+                const line141 = new THREE.Line( geometry141, material );
+                scene.add( line141 );
+                // hydro
+                const hydroAtom142 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom142.position.x = -250;
+                hydroAtom142.position.y = -70;
+                hydroAtom142.position.z = 40; 
+                hydroAtom142.receiveShadow = true;
+                hydroAtom142.castShadow =true;
+                scene.add( hydroAtom142 );
+                //line hydro
+                const points142 = [];
+                points142.push(new THREE.Vector3( -250, -40, 0 ));
+                points142.push(new THREE.Vector3( -250, -70, 40 ));
+                const geometry142 = new THREE.BufferGeometry().setFromPoints(points142);
+                const line142 = new THREE.Line( geometry142, material);
+                scene.add( line142 );
+                // hydro
+                const hydroAtom15 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom15.position.x = -300;
+                hydroAtom15.position.y = -30;
+                hydroAtom15.position.z = -40; 
+                hydroAtom15.receiveShadow = true;
+                hydroAtom15.castShadow =true;
+                scene.add( hydroAtom15 );
+                //line hydro
+                const points15 = [];
+                points15.push(new THREE.Vector3( -300, -30, -40 ));
+                points15.push(new THREE.Vector3( -300, 0, 0 ));
+                const geometry15 = new THREE.BufferGeometry().setFromPoints(points15);
+                const line15 = new THREE.Line( geometry15, material);
+                scene.add( line15 );
+
+                // hydro ring 5
+                const hydroAtom181 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom181.position.x = -350;
+                hydroAtom181.position.y = -70;
+                hydroAtom181.position.z = -40; 
+                hydroAtom181.receiveShadow = true;
+                hydroAtom181.castShadow =true;
+                scene.add( hydroAtom181 );                
+                // line
+                const points181 = [];
+                points181.push(new THREE.Vector3( -350, -40, 0 ));
+                points181.push(new THREE.Vector3( -350, -70, -40 ));
+                const geometry181 = new THREE.BufferGeometry().setFromPoints(points181);
+                const line181 = new THREE.Line( geometry181, material );
+                scene.add( line181 );
+                // hydro
+                const hydroAtom182 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom182.position.x = -350;
+                hydroAtom182.position.y = -70;
+                hydroAtom182.position.z = 40; 
+                hydroAtom182.receiveShadow = true;
+                hydroAtom182.castShadow =true;
+                scene.add( hydroAtom182 );
+                //line hydro
+                const points182 = [];
+                points182.push(new THREE.Vector3( -350, -40, 0 ));
+                points182.push(new THREE.Vector3( -350, -70, 40 ));
+                const geometry182 = new THREE.BufferGeometry().setFromPoints(points182);
+                const line182 = new THREE.Line( geometry182, material);
+                scene.add( line182 );
+
+                const points1819 = [];
+                points1819.push(new THREE.Vector3( -380, -10, 0 ));
+                points1819.push(new THREE.Vector3( -350, -40, 0 ));
+                const geometry1819 = new THREE.BufferGeometry().setFromPoints(points1819);
+                const line1819 = new THREE.Line( geometry1819, material);
+                scene.add( line1819 );
+
+                const points1620 = [];
+                points1620.push(new THREE.Vector3( -330, 80, 0 ));
+                points1620.push(new THREE.Vector3( -300, 50, 0 ));
+                const geometry1620 = new THREE.BufferGeometry().setFromPoints(points1620);
+                const line1620 = new THREE.Line( geometry1620, material);
+                scene.add( line1620 );
+
+                ///// First ring
+                //hydro 21 - 1
+                const hydroAtom211 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom211.position.x = 150;
+                hydroAtom211.position.y = -70;
+                hydroAtom211.position.z = -40; 
+                hydroAtom211.receiveShadow = true;
+                hydroAtom211.castShadow =true;
+                scene.add( hydroAtom211 );                
+                // line
+                const points211 = [];
+                points211.push(new THREE.Vector3( 150, -40, 0 ));
+                points211.push(new THREE.Vector3( 150, -70, -40 ));
+                const geometry211 = new THREE.BufferGeometry().setFromPoints(points211);
+                const line211 = new THREE.Line( geometry211, material );
+                scene.add( line211 );
+                // hydro 21 - 2
+                const hydroAtom212 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom212.position.x = 150;
+                hydroAtom212.position.y = -70;
+                hydroAtom212.position.z = 40; 
+                hydroAtom212.receiveShadow = true;
+                hydroAtom212.castShadow =true;
+                scene.add( hydroAtom212 );
+                //line hydro 21 - 2
+                const points212 = [];
+                points212.push(new THREE.Vector3( 150, -40, 0 ));
+                points212.push(new THREE.Vector3( 150, -70, 40 ));
+                const geometry212 = new THREE.BufferGeometry().setFromPoints(points212);
+                const line212 = new THREE.Line( geometry212, material);
+                scene.add( line212 );
+
+                ///////////////
+                // hydro of carbon 4 -1
+                const hydroAtom4 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom4.position.x = 100;
+                hydroAtom4.position.y = -30;
+                hydroAtom4.position.z = -40; 
+                hydroAtom4.receiveShadow = true;
+                hydroAtom4.castShadow =true;
+                scene.add( hydroAtom4 );
+                //line hydro  of carbon 4 -1
+                const points4 = [];
+                points4.push(new THREE.Vector3( 100, -30, -40 ));
+                points4.push(new THREE.Vector3( 100, 0, 0 ));
+                const geometry4 = new THREE.BufferGeometry().setFromPoints(points4);
+                const line4 = new THREE.Line( geometry4, material);
+                scene.add( line4 );
+
+                ////////
+                //hydro 24 - 1
+                const hydroAtom241 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom241.position.x = 250;
+                hydroAtom241.position.y = -70;
+                hydroAtom241.position.z = -40; 
+                hydroAtom241.receiveShadow = true;
+                hydroAtom241.castShadow =true;
+                scene.add( hydroAtom241 );                
+                // line
+                const points241 = [];
+                points241.push(new THREE.Vector3( carbonAtom24.position.x, carbonAtom24.position.y, carbonAtom24.position.z));
+                points241.push(new THREE.Vector3( hydroAtom241.position.x, hydroAtom241.position.y, hydroAtom241.position.z ));
+                const geometry241 = new THREE.BufferGeometry().setFromPoints(points241);
+                const line241 = new THREE.Line( geometry241, material );
+                scene.add( line241 );
+                // hydro 24 - 2
+                const hydroAtom242 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom242.position.x = 250;
+                hydroAtom242.position.y = -70;
+                hydroAtom242.position.z = 40; 
+                hydroAtom242.receiveShadow = true;
+                hydroAtom242.castShadow =true;
+                scene.add( hydroAtom242 );
+                //line hydro 24 - 2
+                const points242 = [];
+                points242.push(new THREE.Vector3( carbonAtom24.position.x, carbonAtom24.position.y, carbonAtom24.position.z ));
+                points242.push(new THREE.Vector3( hydroAtom242.position.x, hydroAtom242.position.y, hydroAtom242.position.z));
+                const geometry242 = new THREE.BufferGeometry().setFromPoints(points242);
+                const line242 = new THREE.Line( geometry242, material);
+                scene.add( line242 );
+                
+                // line carbon 24 - hydro 25
+                const points2425 = [];
+                points2425.push(new THREE.Vector3( carbonAtom24.position.x, carbonAtom24.position.y, carbonAtom24.position.z ));
+                points2425.push(new THREE.Vector3( carbonAtom25.position.x, carbonAtom25.position.y, carbonAtom25.position.z));
+                const geometry2425 = new THREE.BufferGeometry().setFromPoints(points2425);
+                const line2425 = new THREE.Line( geometry2425, material);
+                scene.add( line2425 );
+
+
+
+
+                ///////////// Lines Carbon - Carbon             
+                const cc01 = [];
+                cc01.push(new THREE.Vector3( 0, 0, 0 ));
+                cc01.push(new THREE.Vector3( 0, 50, 0));
+                const geometrycc01 = new THREE.BufferGeometry().setFromPoints(cc01);
+                const linecc01 = new THREE.Line( geometrycc01, c_c_line);
+                scene.add( linecc01 );
+
+                const cc34 = [];
+                cc34.push(new THREE.Vector3( 100, 0, 0 ));
+                cc34.push(new THREE.Vector3( 100, 50, 0));
+                const geometrycc34 = new THREE.BufferGeometry().setFromPoints(cc34);
+                const linecc34 = new THREE.Line( geometrycc34, c_c_line);
+                scene.add( linecc34 );
+
+                const cc15 = [];
+                cc15.push(new THREE.Vector3( 0, 0, 0 ));
+                cc15.push(new THREE.Vector3( 50, -40, 0));
+                const geometrycc15 = new THREE.BufferGeometry().setFromPoints(cc15);
+                const linecc15 = new THREE.Line( geometrycc15, c_c_line);
+                scene.add( linecc15 );
+
+
+                const cc25 = [];
+                cc25.push(new THREE.Vector3( 100, 0, 0 ));
+                cc25.push(new THREE.Vector3( 50, -40, 0));
+                const geometrycc25 = new THREE.BufferGeometry().setFromPoints(cc25);
+                const linecc25 = new THREE.Line( geometrycc25, c_c_line);
+                scene.add( linecc25 );
+
+                
+                
+                // double bonds                
+                const cc021 = [];
+                cc021.push(new THREE.Vector3( 0, 50 - offset, 0 ));
+                cc021.push(new THREE.Vector3( 50, 90 - offset, 0));
+                const geometrycc021 = new THREE.BufferGeometry().setFromPoints(cc021);
+                const linecc021 = new THREE.Line( geometrycc021, c_c_line);
+                scene.add( linecc021 );
+
+                const cc02 = [];
+                cc02.push(new THREE.Vector3( 0, 50 + offset, 0 ));
+                cc02.push(new THREE.Vector3( 50, 90 + offset, 0));
+                const geometrycc02 = new THREE.BufferGeometry().setFromPoints(cc02);
+                const linecc02 = new THREE.Line( geometrycc02, c_c_line);
+                scene.add( linecc02 );
+
+                // c-c 16
+                const cc16 = [];
+                cc16.push(new THREE.Vector3( 0, 0, 0 ));
+                cc16.push(new THREE.Vector3( -50, -40, 0));
+                const geometrycc16 = new THREE.BufferGeometry().setFromPoints(cc16);
+                const linecc16 = new THREE.Line( geometrycc16, c_c_line);
+                scene.add( linecc16 );
+
+                const cc67 = [];
+                cc67.push(new THREE.Vector3( -100, 0, 0 ));
+                cc67.push(new THREE.Vector3( -50, -40, 0));
+                const geometrycc67 = new THREE.BufferGeometry().setFromPoints(cc67);
+                const linecc67 = new THREE.Line( geometrycc67, c_c_line);
+                scene.add( linecc67 );
+
+                const cc78 = [];
+                cc78.push(new THREE.Vector3( -100, 0, 0 ));
+                cc78.push(new THREE.Vector3( -100, 50, 0));
+                const geometrycc78 = new THREE.BufferGeometry().setFromPoints(cc78);
+                const linecc78 = new THREE.Line( geometrycc78, c_c_line);
+                scene.add( linecc78 );
+
+                const cc09 = [];
+                cc09.push(new THREE.Vector3( 0, 50, 0 ));
+                cc09.push(new THREE.Vector3( -50, 90, 0));
+                const geometrycc09 = new THREE.BufferGeometry().setFromPoints(cc09);
+                const linecc09 = new THREE.Line( geometrycc09, c_c_line);
+                scene.add(linecc09);
+
+                // double bonds 89           
+                const cc891 = [];
+                cc891.push(new THREE.Vector3( -100, 50 - offset, 0 ));
+                cc891.push(new THREE.Vector3( -50, 90 - offset, 0));
+                const geometrycc891 = new THREE.BufferGeometry().setFromPoints(cc891);
+                const linecc891 = new THREE.Line( geometrycc891, c_c_line);
+                scene.add( linecc891 );
+
+                const cc892 = [];
+                cc892.push(new THREE.Vector3( -100, 50 + offset, 0 ));
+                cc892.push(new THREE.Vector3( -50, 90 + offset, 0));
+                const geometrycc892 = new THREE.BufferGeometry().setFromPoints(cc892);
+                const linecc892 = new THREE.Line( geometrycc892, c_c_line);
+                scene.add( linecc892 );
+                //////// carbon carbon ring 3
+                const cc710 = [];
+                cc710.push(new THREE.Vector3( -100, 0, 0 ));
+                cc710.push(new THREE.Vector3( -150, -40, 0));
+                const geometrycc710 = new THREE.BufferGeometry().setFromPoints(cc710);
+                const linecc710 = new THREE.Line( geometrycc710, c_c_line);
+                scene.add(linecc710);
+
+                const cc813 = [];
+                cc813.push(new THREE.Vector3( -100, 50, 0 ));
+                cc813.push(new THREE.Vector3( -150, 90, 0));
+                const geometrycc813 = new THREE.BufferGeometry().setFromPoints(cc813);
+                const linecc813 = new THREE.Line( geometrycc813, c_c_line);
+                scene.add(linecc813);
+
+                const cc1011 = [];
+                cc1011.push(new THREE.Vector3( -200, 0, 0 ));
+                cc1011.push(new THREE.Vector3( -150, -40, 0));
+                const geometrycc1011 = new THREE.BufferGeometry().setFromPoints(cc1011);
+                const linecc1011 = new THREE.Line( geometrycc1011, c_c_line);
+                scene.add(linecc1011);
+
+                const cc1112 = [];
+                cc1112.push(new THREE.Vector3( -200, 50, 0 ));
+                cc1112.push(new THREE.Vector3( -200, 0, 0));
+                const geometrycc1112 = new THREE.BufferGeometry().setFromPoints(cc1112);
+                const linecc1112 = new THREE.Line( geometrycc1112, c_c_line);
+                scene.add(linecc1112);
+
+                // double bonds 89           
+                const cc12131 = [];
+                cc12131.push(new THREE.Vector3( -200, 50 - offset, 0 ));
+                cc12131.push(new THREE.Vector3( -150, 90 - offset, 0));
+                const geometrycc12131 = new THREE.BufferGeometry().setFromPoints(cc12131);
+                const linecc12131 = new THREE.Line( geometrycc12131, c_c_line);
+                scene.add( linecc12131 );
+
+                const cc12132 = [];
+                cc12132.push(new THREE.Vector3( -200, 50 + offset, 0 ));
+                cc12132.push(new THREE.Vector3( -150, 90 + offset, 0));
+                const geometrycc12132 = new THREE.BufferGeometry().setFromPoints(cc12132);
+                const linecc12132 = new THREE.Line( geometrycc12132, c_c_line);
+                scene.add( linecc12132 );
+                
+                ////////// carbon-carbon RING 4
+                const cc1114 = [];
+                cc1114.push(new THREE.Vector3( -250, -40, 0 ));
+                cc1114.push(new THREE.Vector3( -200, 0, 0));
+                const geometrycc1114 = new THREE.BufferGeometry().setFromPoints(cc1114);
+                const linecc1114 = new THREE.Line( geometrycc1114, c_c_line);
+                scene.add(linecc1114);
+
+                const cc1415 = [];
+                cc1415.push(new THREE.Vector3( -300, 0, 0 ));
+                cc1415.push(new THREE.Vector3( -250, -40, 0));
+                const geometrycc1415 = new THREE.BufferGeometry().setFromPoints(cc1415);
+                const linecc1415 = new THREE.Line( geometrycc1415, c_c_line);
+                scene.add(linecc1415);
+
+                const cc1516 = [];
+                cc1516.push(new THREE.Vector3( -300, 0, 0 ));
+                cc1516.push(new THREE.Vector3( -300, 50, 0));
+                const geometrycc1516 = new THREE.BufferGeometry().setFromPoints(cc1516);
+                const linecc1516 = new THREE.Line( geometrycc1516, c_c_line);
+                scene.add(linecc1516);
+
+                const cc1217 = [];
+                cc1217.push(new THREE.Vector3( -250, 90, 0 ));
+                cc1217.push(new THREE.Vector3( -200, 50, 0));
+                const geometrycc1217 = new THREE.BufferGeometry().setFromPoints(cc1217);
+                const linecc1217 = new THREE.Line( geometrycc1217, c_c_line);
+                scene.add(linecc1217);
+
+                // double bonds 1617           
+                const cc16171 = [];
+                cc16171.push(new THREE.Vector3( -300, 50 - offset, 0 ));
+                cc16171.push(new THREE.Vector3( -250, 90 - offset, 0));
+                const geometrycc16171 = new THREE.BufferGeometry().setFromPoints(cc16171);
+                const linecc16171 = new THREE.Line( geometrycc16171, c_c_line);
+                scene.add( linecc16171 );
+
+                const cc16172 = [];
+                cc16172.push(new THREE.Vector3( -300, 50 + offset, 0 ));
+                cc16172.push(new THREE.Vector3( -250, 90 + offset, 0));
+                const geometrycc16172 = new THREE.BufferGeometry().setFromPoints(cc16172);
+                const linecc16172 = new THREE.Line( geometrycc16172, c_c_line);
+                scene.add( linecc16172 );
+
+                //////////// carbon carbon RING 5    
+                const cc1815 = [];
+                cc1815.push(new THREE.Vector3( -350, -40, 0 ));
+                cc1815.push(new THREE.Vector3( -300, 0, 0));
+                const geometrycc1815 = new THREE.BufferGeometry().setFromPoints(cc1815);
+                const linecc1815 = new THREE.Line( geometrycc1815, c_c_line);
+                scene.add(linecc1815);
+                //////////// carbon carbon first ring
+                const cc421 = [];
+                cc421.push(new THREE.Vector3( 150, -40, 0 ));
+                cc421.push(new THREE.Vector3( 100, 0, 0));
+                const geometrycc421 = new THREE.BufferGeometry().setFromPoints(cc421);
+                const linecc421 = new THREE.Line( geometrycc421, c_c_line);
+                scene.add(linecc421);
+
+
+                // double bonds carbon 3, nito 23   
+                const cc3231 = [];
+                cc3231.push(new THREE.Vector3( 100, 50 - offset, 0 ));
+                cc3231.push(new THREE.Vector3( 150, 90 - offset, 0));
+                const geometrycc3231 = new THREE.BufferGeometry().setFromPoints(cc3231);
+                const linecc3231 = new THREE.Line( geometrycc3231, c_c_line);
+                scene.add( linecc3231 );
+
+                const cc3232 = [];
+                cc3232.push(new THREE.Vector3( 100, 50 + offset, 0 ));
+                cc3232.push(new THREE.Vector3( 150, 90 + offset, 0));
+                const geometrycc3232 = new THREE.BufferGeometry().setFromPoints(cc3232);
+                const linecc3232 = new THREE.Line( geometrycc3232, c_c_line);
+                scene.add( linecc3232 );
+                
+                // line carbon 21 and 22
+                const points2122 = [];
+                points2122.push(new THREE.Vector3( carbonAtom22.position.x, carbonAtom22.position.y, carbonAtom22.position.z ));
+                points2122.push(new THREE.Vector3( carbonAtom21.position.x, carbonAtom21.position.y, carbonAtom21.position.z ));
+                const geometry2122 = new THREE.BufferGeometry().setFromPoints(points2122);
+                const line2122 = new THREE.Line( geometry2122, c_c_line);
+                scene.add( line2122 );
+
+                // line carbon 22 and 24
+                const cc2224 = [];
+                cc2224.push(new THREE.Vector3( carbonAtom22.position.x, carbonAtom22.position.y, carbonAtom22.position.z ));
+                cc2224.push(new THREE.Vector3( carbonAtom24.position.x, carbonAtom24.position.y, carbonAtom24.position.z));
+                const geometrycc2224 = new THREE.BufferGeometry().setFromPoints(cc2224);
+                const linecc2224 = new THREE.Line( geometrycc2224, c_c_line);
+                scene.add(linecc2224);
+
+                 // line carbon 22 and 26
+                 const cc2226 = [];
+                cc2226.push(new THREE.Vector3( carbonAtom22.position.x, carbonAtom22.position.y, carbonAtom22.position.z ));
+                cc2226.push(new THREE.Vector3( carbonAtom26.position.x, carbonAtom26.position.y, carbonAtom26.position.z));
+                const geometrycc2226 = new THREE.BufferGeometry().setFromPoints(cc2226);
+                const linecc2226 = new THREE.Line( geometrycc2226, c_c_line);
+                scene.add(linecc2226);
+
+                // double bonds carbon 26, nito 27
+                const cc26271 = [];
+                cc26271.push(new THREE.Vector3( carbonAtom26.position.x, carbonAtom26.position.y - offset, carbonAtom26.position.z ));
+                cc26271.push(new THREE.Vector3( carbonAtom27.position.x, carbonAtom27.position.y - offset, carbonAtom27.position.z));
+                const geometrycc26271 = new THREE.BufferGeometry().setFromPoints(cc26271);
+                const linecc26271 = new THREE.Line( geometrycc26271, c_c_line);
+                scene.add( linecc26271 );
+
+                // double bonds carbon 26, nito 27
+                const cc26272 = [];
+                cc26272.push(new THREE.Vector3( carbonAtom26.position.x, carbonAtom26.position.y + offset, carbonAtom26.position.z ));
+                cc26272.push(new THREE.Vector3( carbonAtom27.position.x, carbonAtom27.position.y + offset, carbonAtom27.position.z));
+                const geometrycc26272 = new THREE.BufferGeometry().setFromPoints(cc26272);
+                const linecc26272 = new THREE.Line( geometrycc26272, c_c_line);
+                scene.add( linecc26272 );
+
+                //////// ANIMATION
+
+                const hydroAtom21 = new THREE.Mesh(hydroAtom, hydroSphereSmall);
+                hydroAtom21.position.x = 20;
+                hydroAtom21.position.y = 140;
+                hydroAtom21.position.z = 0; 
+                hydroAtom21.receiveShadow = true;
+                hydroAtom21.castShadow =true;
+                scene.add( hydroAtom21 );
+
+                var points2 = [];
+                points2.push(new THREE.Vector3( 50, 90, 0 ));
+                points2.push(new THREE.Vector3( hydroAtom21.position.x, 140, 0 ));                
+                var geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
+                var line2 = new THREE.Line( geometry2, material);
+                scene.add( line2 );
+
+                // line carbon 3, and nito 23, third bond
+                const cc3233 = [];
+                cc3233.push(new THREE.Vector3( 100, 50, 0 ));
+                cc3233.push(new THREE.Vector3( 150, 90, 0));
+                const geometrycc3233 = new THREE.BufferGeometry().setFromPoints(cc3233);
+                const linecc3233 = new THREE.Line( geometrycc3233, c_c_line);
+                scene.add( linecc3233 );
+                linecc3233.visible = true;
+                
+                // line carbon 2 and carbon 3
+                const cc23 = [];
+                cc23.push(new THREE.Vector3( 100, 50, 0 ));
+                cc23.push(new THREE.Vector3( 50, 90, 0));
+                const geometrycc23 = new THREE.BufferGeometry().setFromPoints(cc23);
+                const linecc23 = new THREE.Line( geometrycc23, c_c_line);
+                scene.add( linecc23 );
+                linecc23.visible = false;
+                
+                // dash line carbon 0 and nito 9
+                const cc091 = [];
+                cc091.push(new THREE.Vector3(carbonAtom0.position.x, carbonAtom0.position.y+8, carbonAtom0.position.z));
+                cc091.push(new THREE.Vector3(carbonAtom2.position.x, carbonAtom2.position.y+8, carbonAtom2.position.z));
+                const geometrycc091 = new THREE.BufferGeometry().setFromPoints(cc091);
+                const linecc091 = new THREE.LineSegments( geometrycc091, c_c_dashline );
+                linecc091.computeLineDistances();
+                scene.add( linecc091 );
+                linecc091.visible = false;
+
+                // camera movement to create zoom in effect, rotate, pan camera effect
+                camera_move()
+                              
+                // main animation is the hydro21movement
+                new TWEEN.Tween(hydroAtom21.position)
+                    .to({
+                        x: 270 //move to position 270 in 20 seconds
+                    }, 20000)
+                    .easing(TWEEN.Easing.Quadratic.InOut) // adding effect
+                    .onUpdate(()=> { // when the hydro move, run the code in onUpdate()
+                        scene.remove( line2 ); //remove the old bond to redraw the bond updated with new position of hydro
+                        points2[1] = (new THREE.Vector3( hydroAtom21.position.x, hydroAtom21.position.y, 0 ));
+                        // redraw the connection of hydro and old carbon
+                        if (hydroAtom21.position.x < 70){ // hydro position more than 70, lost connection
+                            geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
+                            line2 = new THREE.Line( geometry2, material);
+                            scene.add(line2);
+                        }
+                        
+                        //dash line
+                        if (hydroAtom21.position.x > 90){
+                            linecc091.visible = false; // dash line disappear
+                            linecc23.visible = true; // carbon-carbon connection appear
+                        }else if (hydroAtom21.position.x > 70){
+                            linecc091.visible = true;// dash line appear between nito and carbon
+                        }
+
+
+                        // moving hydro connect to new nito
+                        if(hydroAtom21.position.x > 250){
+                            linecc26273.visible = false;
+                            points2[0] = new THREE.Vector3( carbonAtom27.position.x, carbonAtom27.position.y, carbonAtom27.position.z );
+                            geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
+                            line2 = new THREE.Line( geometry2, material);
+                            scene.add(line2);
+                        }else if(hydroAtom21.position.x > 130 & hydroAtom21.position.x < 190){
+                            linecc3233.visible = false;
+                            points2[0] = new THREE.Vector3( 150, 90, 0 );
+                            geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
+                            line2 = new THREE.Line( geometry2, material);
+                            scene.add(line2);
+                        }
+
+                        //dash line
+                        if (hydroAtom21.position.x > 210){
+                            linecc231.visible = false; // dash line disappear
+                            linecc2326.visible = true; // carbon-carbon connection appear
+                        }else if (hydroAtom21.position.x > 190){
+                            linecc231.visible = true;// dash line appear
+                        }
+
+                    })
+                    .start();
+                
+                // move the hydro higher along y axis to make the curve effect. Divided into 4 phases, each lasts 5 seconds
+                new TWEEN.Tween(hydroAtom21.position)
+                    .to({
+                        y: 160              
+                    }, 5000)
+                    .onComplete(() => {
+                        new TWEEN.Tween(hydroAtom21.position)
+                            .to({
+                                y: 155,
+                            }, 5000)
+                            .onUpdate(() => render())//this line is unnecessary if you are re-rendering within the animation loop 
+                            .onComplete(()=>{
+                                new TWEEN.Tween(hydroAtom21.position)
+                                .to({
+                                    y: 160
+                                }, 5000)
+                                .onComplete(() => {
+                                    new TWEEN.Tween(hydroAtom21.position)
+                                        .to({
+                                            y: 135,
+                                        }, 5000)
+                                        .onUpdate(() => render())//this line is unnecessary if you are re-rendering within the animation loop 
+                                        .start();
+
+                                })
+                                .start();
+                            })
+                            .start();
+                    })
+                    .start();
+                
+                
+                // Below draws are for the most outer circle
+                // line carbon 3, and nito 23, third bond
+                const cc26273 = [];
+                cc26273.push(new THREE.Vector3( carbonAtom26.position.x, carbonAtom26.position.y, carbonAtom26.position.z ));
+                cc26273.push(new THREE.Vector3( carbonAtom27.position.x, carbonAtom27.position.y, carbonAtom27.position.z));
+                const geometrycc26273 = new THREE.BufferGeometry().setFromPoints(cc26273);
+                const linecc26273 = new THREE.Line( geometrycc26273, c_c_line);
+                scene.add( linecc26273 );
+                linecc26273.visible = true;
+
+                // dash line carbon 3 and nito 2
+                const cc231 = [];
+                cc231.push(new THREE.Vector3( carbonAtom3.position.x, carbonAtom3.position.y+8, carbonAtom3.position.z ));
+                cc231.push(new THREE.Vector3( carbonAtom23.position.x, carbonAtom23.position.y+8, carbonAtom23.position.z));
+                const geometrycc231 = new THREE.BufferGeometry().setFromPoints(cc231);
+                const linecc231 = new THREE.LineSegments( geometrycc231, c_c_dashline );
+                linecc231.computeLineDistances();
+                scene.add( linecc231 );
+                linecc231.visible = false;
+
+                // line carbon 23 and carbon 26
+                const cc2326 = [];
+                cc2326.push(new THREE.Vector3( carbonAtom23.position.x, carbonAtom23.position.y, carbonAtom23.position.z ));
+                cc2326.push(new THREE.Vector3( carbonAtom26.position.x, carbonAtom26.position.y, carbonAtom26.position.z));
+                const geometrycc2326 = new THREE.BufferGeometry().setFromPoints(cc2326);
+                const linecc2326 = new THREE.Line( geometrycc2326, c_c_line);
+                scene.add( linecc2326 );
+                linecc2326.visible = false;
+
+            }
+
+            animate()
+        </script>
+    </body>
+</html>
